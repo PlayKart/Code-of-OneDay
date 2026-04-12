@@ -183,7 +183,7 @@ const { data } = await supabase
 .single();
 const xp = data?.xp || 0;
 const level = getLevel(xp);
-document.getElementById("greeting").textContent = Level ${level} • ${xp} XP;
+document.getElementById("streak").textContent = `${streak} day streak 🔥`;
 }
 async function calculateStreak() {
 const user = JSON.parse(localStorage.getItem("userAuth"));
@@ -252,8 +252,7 @@ if (error) {
 showToast("Error adding habit");
 } else {
 input.value = "";
-await loadHabits();
-await renderCalendar();
+await refreshAppData();
 showToast("Habit added");
 }
 }
@@ -273,8 +272,17 @@ container.innerHTML = "";
 habits.forEach(habit => {
 const isDone = completions.some(c => c.habit_id === habit.id);
 const el = document.createElement("div");
-el.className = habit-card ${isDone ? 'completed' : ''};
-el.innerHTML = <span class="habit-name">${habit.name}</span> <button class="btn btn-primary"  onclick="completeHabit(${habit.id})"  ${isDone ? 'disabled' : ''}  style="padding: 8px 16px; font-size: 12px; height: 32px;"> ${isDone ? 'Done' : 'Complete'} </button>;
+el.className = `habit-card ${isDone ? 'completed' : ''}`;
+
+el.innerHTML = `
+  <span class="habit-name">${habit.name}</span>
+  <button class="btn btn-primary"
+    onclick="completeHabit(${habit.id})"
+    ${isDone ? 'disabled' : ''}
+    style="padding: 8px 16px; font-size: 12px; height: 32px;">
+    ${isDone ? 'Done' : 'Complete'}
+  </button>
+`;
 container.appendChild(el);
 });
 }
@@ -341,8 +349,13 @@ const isToday = i === 0;
 // Pro Mode logic: Day completed only if all habits are done
 const isCompleted = (completedDatesMap[dateStr] || 0) >= totalHabits && totalHabits > 0;
 const dayEl = document.createElement("div");
-dayEl.className = cal-day ${isToday ? 'today' : ''} ${isCompleted ? 'completed' : ''};
-dayEl.innerHTML = <span style="font-size:10px; opacity:0.6;"> ${d.toLocaleDateString('en-US', { weekday: 'short' })} </span> <span class="cal-day-num">${d.getDate()}</span>;
+dayEl.className = `cal-day ${isToday ? 'today' : ''} ${isCompleted ? 'completed' : ''}`;
+dayEl.innerHTML = `
+  <span style="font-size:10px; opacity:0.6;">
+    ${d.toLocaleDateString('en-US', { weekday: 'short' })}
+  </span>
+  <span class="cal-day-num">${d.getDate()}</span>
+`;
 container.appendChild(dayEl);
 }
 }
@@ -357,11 +370,13 @@ localStorage.removeItem("userAuth");
 location.reload();
 }
 window.onload = async () => {
-const userStr = localStorage.getItem("userAuth");
-if (userStr) {
-showApp();
-await refreshAppData();
-}
+  initGoogle(); // ✅ ADD THIS (VERY IMPORTANT)
+
+  const userStr = localStorage.getItem("userAuth");
+  if (userStr) {
+    showApp();
+    await refreshAppData();
+  }
 };
 </script>
 </body>
