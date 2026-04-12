@@ -120,9 +120,9 @@ opacity: 0.035;
 <div id="toast"></div>
 <script src="[https://cdn.jsdelivr.net/npm/@supabase/supabase-js](https://cdn.jsdelivr.net/npm/@supabase/supabase-js)"></script>
 <script>
-const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID";
-const SUPABASE_URL = "YOUR_SUPABASE_URL";
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_KEY";
+const GOOGLE_CLIENT_ID = "477601601786-2cacqtv0mbmcu5c1dcb28e69um9g0ssi.apps.googleusercontent.com";
+const SUPABASE_URL = "https://fetxibwbyxbaliemiyck.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldHhpYndieXhiYWxpZW1peWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDk0MjgsImV4cCI6MjA5MDg4NTQyOH0.pjvLuezScdPDGuw46kXvAk8c5f0TK3i7PkrIpz0asKI";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 function parseJwt(token) {
 try {
@@ -183,7 +183,7 @@ const { data } = await supabase
 .single();
 const xp = data?.xp || 0;
 const level = getLevel(xp);
-document.getElementById("streak").textContent = `${streak} day streak 🔥`;
+document.getElementById("greeting").textContent = `Level ${level} • ${xp} XP`;
 }
 async function calculateStreak() {
 const user = JSON.parse(localStorage.getItem("userAuth"));
@@ -214,7 +214,7 @@ return streak;
 }
 async function updateStreakUI() {
 const streak = await calculateStreak();
-document.getElementById("streak").textContent = ${streak} day streak 🔥;
+document.getElementById("streak").textContent = `${streak} day streak 🔥`;
 }
 async function refreshAppData() {
 await loadUserStats();
@@ -318,10 +318,7 @@ await supabase
 .update({ xp: newXP })
 .eq("email", user.email);
 showToast("+10 XP");
-await loadUserStats();
-await loadHabits();
-await renderCalendar();
-await updateStreakUI();
+await refreshAppData();
 }
 async function renderCalendar() {
 const user = JSON.parse(localStorage.getItem("userAuth"));
