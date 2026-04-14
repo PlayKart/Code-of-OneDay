@@ -362,34 +362,8 @@ await supabase
 .from("users")
 .update({ xp: newXP })
 .eq("email", user.email);
-  // 🔥 CALCULATE NEW STREAK
-const { data: completions } = await supabase
-  .from("completions")
-  .select("date")
-  .eq("user_id", user.email);
+  const streak = await calculateStreak();
 
-const uniqueDates = [...new Set((completions || []).map(c => c.date))];
-
-let streak = 0;
-let current = new Date();
-current.setHours(0,0,0,0);
-
-for (let i = 0; i < 365; i++) {
-  const check = new Date();
-  check.setDate(current.getDate() - i);
-  check.setHours(0,0,0,0);
-
-  const str = check.toISOString().split("T")[0];
-
-  if (uniqueDates.includes(str)) {
-    streak++;
-  } else {
-    if (i === 0) continue;
-    break;
-  }
-}
-
-// 🔥 SAVE STREAK TO DB
 await supabase
   .from("users")
   .update({ streak })
@@ -444,17 +418,29 @@ localStorage.removeItem("userAuth");
 location.reload();
 }
 
-// ✅ FIX 3 — ❄️ activateFreeze: saves freeze_until date to Supabase
-async function activateFreeze(days) {
+// ✅ async function activateFreeze(days) {
   const user = JSON.parse(localStorage.getItem("userAuth"));
   if (!user) return;
 
-  // Calculate the freeze expiry date
-  const future = new Date();
-  future.setDate(future.getDate() + days);
-  const freezeUntil = future.toISOString().split("T")[0];
+  const { data: userData } = await supabase
+    .from("users")
+    .select("freeze_until")
+    .eq("email", user.email)
+    .single();
 
-  // First, snapshot the current streak so it's preserved
+  let baseDate = new Date();
+
+  if (userData?.freeze_until) {
+    const existing = new Date(userData.freeze_until);
+    if (existing > baseDate) {
+      baseDate = existing;
+    }
+  }
+
+  baseDate.setDate(baseDate.getDate() + days);
+
+  const freezeUntil = baseDate.toISOString().split("T")[0];
+
   const currentStreak = await calculateStreak();
 
   const { error } = await supabase
@@ -467,9 +453,10 @@ async function activateFreeze(days) {
     return;
   }
 
-  showToast(`Streak paused for ${days} days ❄️`);
-  await updateFreezeStatus();
-}
+  showToast(`Streak paused till ${freezeUntil} ❄️`);
+
+  await refreshAppData(); // 🔥 IMPORTANT (not just updateFreezeStatus)
+  }
 
 // ✅ FIX 3 — ❄️ updateFreezeStatus: updates the #freeze-status element in Settings
 async function updateFreezeStatus() {
