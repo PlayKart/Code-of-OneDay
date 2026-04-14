@@ -162,8 +162,6 @@ document.getElementById("g-signin-btn"),
 { theme: "outline", size: "large", width: "100%" }
 );
 }
-// Failsafe for Google Init
-setTimeout(initGoogle, 500);
 async function handleCredentialResponse(response) {
 const data = parseJwt(response.credential);
 if (data) {
