@@ -207,11 +207,24 @@ const level = getLevel(xp);
 document.getElementById("greeting").textContent = `Level ${level} • ${xp} XP`;
 }
 async function calculateStreak() {
+  // ✅ FIX: DEFINE USER FIRST
+  const user = JSON.parse(localStorage.getItem("userAuth"));
+  if (!user) return 0;
+
   const { data: userData } = await supabase
-  .from("users")
-  .select("freeze_until, streak")
-  .eq("email", user.email)
-  .single();
+    .from("users")
+    .select("freeze_until, streak")
+    .eq("email", user.email)
+    .single();
+
+  const today = new Date().toISOString().split("T")[0];
+
+  if (userData?.freeze_until && userData.freeze_until >= today) {
+    return userData.streak || 0;
+  }
+
+  // rest of your code continues...
+}
 
 const today = new Date().toISOString().split("T")[0];
 
