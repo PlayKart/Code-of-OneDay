@@ -144,7 +144,13 @@ alert("JS loaded");
 const GOOGLE_CLIENT_ID = "477601601786-2cacqtv0mbmcu5c1dcb28e69um9g0ssi.apps.googleusercontent.com";
 const SUPABASE_URL = "https://fetxibwbyxbaliemiyck.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldHhpYndieXhiYWxpZW1peWNrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzMDk0MjgsImV4cCI6MjA5MDg4NTQyOH0.pjvLuezScdPDGuw46kXvAk8c5f0TK3i7PkrIpz0asKI";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  let supabase;
+
+window.addEventListener("load", () => {
+  if (window.supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+});
 function parseJwt(token) {
 try {
 return JSON.parse(atob(token.split('.')[1]));
@@ -507,7 +513,11 @@ async function updateFreezeStatus() {
   }
 }
 window.onload = async () => {
-  initGoogle(); // ✅ ADD THIS (VERY IMPORTANT)
+
+  // ✅ SAFE GOOGLE INIT
+  if (window.google && google.accounts) {
+    initGoogle();
+  }
 
   const userStr = localStorage.getItem("userAuth");
   if (userStr) {
