@@ -114,16 +114,17 @@ opacity: 0.035;
     <div id="freeze-status" style="font-size:12px; color:#aaa;"></div>
 
     <!-- 🔥 PAUSE STREAK BUTTON -->
-    <button class="btn btn-ghost" onclick="activateFreeze(5)">
+    <button id="freeze-5" class="btn btn-ghost" onclick="activateFreeze(5)">
+  Pause streak (5 days ❄️)
+</button>
+
+<button id="freeze-10" class="btn btn-ghost" onclick="activateFreeze(10)">
+  Pause 10 days
+</button>
       Pause streak (5 days ❄️)
     </button>
 
-    <!-- (OPTIONAL) MORE OPTIONS -->
-    <button class="btn btn-ghost" onclick="activateFreeze(10)">
-      Pause 10 days
-    </button>
-
-    <!-- LOGOUT -->
+   <!-- LOGOUT -->
     <button class="btn btn-ghost" onclick="logout()">
       Sign Out
     </button>
@@ -462,6 +463,9 @@ async function activateFreeze(days) {
 async function updateFreezeStatus() {
   const user = JSON.parse(localStorage.getItem("userAuth"));
   const el = document.getElementById("freeze-status");
+  const btn5 = document.getElementById("freeze-5");
+  const btn10 = document.getElementById("freeze-10");
+
   if (!user || !el) return;
 
   const { data } = await supabase
@@ -472,11 +476,37 @@ async function updateFreezeStatus() {
 
   const today = new Date().toISOString().split("T")[0];
 
-  if (data?.freeze_until && data.freeze_until >= today) {
+  const isFrozen = data?.freeze_until && data.freeze_until >= today;
+
+  if (isFrozen) {
     el.textContent = `❄️ Streak paused until ${data.freeze_until}`;
-    el.style.color = "#7dd3fc"; // soft blue for freeze indicator
+    el.style.color = "#7dd3fc";
+
+    if (btn5) {
+      btn5.disabled = true;
+      btn5.textContent = "Already paused ❄️";
+      btn5.style.opacity = "0.5";
+    }
+
+    if (btn10) {
+      btn10.disabled = true;
+      btn10.style.opacity = "0.5";
+    }
+
   } else {
     el.textContent = "";
+
+    if (btn5) {
+      btn5.disabled = false;
+      btn5.textContent = "Pause streak (5 days ❄️)";
+      btn5.style.opacity = "1";
+    }
+
+    if (btn10) {
+      btn10.disabled = false;
+      btn10.textContent = "Pause 10 days";
+      btn10.style.opacity = "1";
+    }
   }
 }
 window.onload = async () => {
