@@ -418,7 +418,7 @@ localStorage.removeItem("userAuth");
 location.reload();
 }
 
-// ✅ async function activateFreeze(days) {
+async function activateFreeze(days) {
   const user = JSON.parse(localStorage.getItem("userAuth"));
   if (!user) return;
 
