@@ -1265,8 +1265,8 @@ body::before {
 /* ════════════════════════════════════════════
    CONSTANTS
    ════════════════════════════════════════════ */
-const BACKEND_URL      = 'https://your-backend.onrender.com';
-const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+const BACKEND_URL      = (window.__ONEDAY_BACKEND_URL__ || 'https://your-backend.onrender.com').replace(/\/$/, '');
+const GOOGLE_CLIENT_ID = window.__ONEDAY_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID';
 
 const QUOTES = [
   {text:"The secret of getting ahead is getting started.",tag:"Daily Boost ⚡"},
@@ -1307,6 +1307,49 @@ let S = {
   weeklyDone:     [],
   lastActiveDate: null,
 };
+
+
+function stateSnapshot() {
+  return {
+    userAuth:      S.userAuth,
+    user:          S.user,
+    habits:        S.habits,
+    streak:        S.streak,
+    xp:            S.xp,
+    level:         S.level,
+    freeze_until:  S.freeze_until,
+    completions:   S.completions,
+    rewards:       S.rewards,
+    reflections:   S.reflections,
+    reflectTime:   S.reflectTime,
+    weeklyDone:    S.weeklyDone,
+    lastActiveDate:S.lastActiveDate,
+  };
+}
+
+function persistSession() {
+  try { sessionStorage.setItem('oneday_session', JSON.stringify(stateSnapshot())); } catch(e) {}
+}
+
+async function saveState() {
+  persistSession();
+  if (isLocal()) return;
+  try {
+    await apiPOST('/user/state', {
+      user:         S.user,
+      habits:       S.habits,
+      completions:  S.completions,
+      streak:       S.streak,
+      xp:           S.xp,
+      level:        S.level,
+      freeze_until: S.freeze_until,
+      rewards:      S.rewards,
+      reflections:  S.reflections,
+      reflectTime:  S.reflectTime,
+      lastActiveDate: S.lastActiveDate,
+    });
+  } catch(e) {}
+}
 
 /* ════════════════════════════════════════════
    BACKEND API HELPERS
@@ -1391,8 +1434,12 @@ async function refreshFromBackend() {
     if (data.goal          !== undefined) S.user.goal    = data.goal;
     if (data.habits        !== undefined) S.habits       = Array.isArray(data.habits) ? data.habits : S.habits;
     if (data.completions   !== undefined) S.completions  = data.completions || {};
+    if (data.rewards       !== undefined) S.rewards      = Array.isArray(data.rewards) ? data.rewards : (S.rewards || []);
+    if (data.reflections   !== undefined) S.reflections  = Array.isArray(data.reflections) ? data.reflections : (S.reflections || []);
+    if (data.reflectTime   !== undefined) S.reflectTime  = data.reflectTime || S.reflectTime;
     if (data.lastActiveDate!== undefined) S.lastActiveDate = data.lastActiveDate || null;
     await checkAutoFreeze();
+    persistSession();
   } catch(e) {
     console.warn('refreshFromBackend:', e.message);
     toast('⚠️ Could not sync with server');
@@ -1422,6 +1469,7 @@ async function activateFreeze(days) {
     }
     await refreshFromBackend();
     updateFreezeUI();
+    saveState();
     toast('❄️ Streak paused until ' + S.freeze_until);
   } catch(e) {
     toast('⚠️ Could not activate freeze');
@@ -1455,7 +1503,10 @@ async function checkAutoFreeze() {
   try {
     const last = new Date(S.lastActiveDate), now = new Date();
     if (Math.floor((now - last) / 86400000) >= 2) {
-      await apiPOST('/freeze', {days: 7});
+      const data = await apiPOST('/freeze', {days: 7});
+      if (data && data.freeze_until) S.freeze_until = data.freeze_until;
+      await refreshFromBackend();
+      updateFreezeUI();
     }
   } catch(e) {}
 }
@@ -1479,6 +1530,10 @@ function startLogin() {
 
 function initGoogle() {
   if (typeof google === 'undefined') return;
+  if (!GOOGLE_CLIENT_ID || GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+    toast('Set window.__ONEDAY_GOOGLE_CLIENT_ID to enable Google Sign-In');
+    return;
+  }
   try {
     google.accounts.id.initialize({
       client_id:   GOOGLE_CLIENT_ID,
@@ -1565,6 +1620,7 @@ function finishOnboarding() {
     if (f) { f.classList.add('selected'); chosenGoal = 'Health & Fitness'; }
   }
   S.user.goal = chosenGoal;
+  persistSession();
   enterApp();
 }
 
@@ -1798,6 +1854,7 @@ function addHabit(habitData) {
   S.habits.unshift(h);
   gainXP(5, el('xp-total'));
   renderHabits(); updateStats(); updateRings();
+  saveState();
   toast('Habit added ✓');
 }
 
@@ -1857,13 +1914,17 @@ function toggleHabit(id) {
   if (!S.completions) S.completions = {};
   const anyDone = (S.habits || []).some(x => x.completedToday);
   if (anyDone) S.completions[today] = true;
+  else delete S.completions[today];
+  S.lastActiveDate = today;
   renderCalendar();
   renderHabits(); updateStats(); updateRings(); updateXP(); updateStreak();
+  saveState();
 }
 
 function deleteHabit(id) {
   S.habits = (S.habits || []).filter(h => h.id !== id);
   renderHabits(); updateStats(); updateRings(); renderCalendar();
+  saveState();
 }
 
 /* ════════════════════════════════════════════
@@ -1982,6 +2043,7 @@ function closeReward() {
    ════════════════════════════════════════════ */
 function saveReflectTime() {
   const t = el('reflect-time'); if (t) S.reflectTime = t.value;
+  saveState();
 }
 
 function setupReflectCheck() {
@@ -2021,11 +2083,13 @@ async function submitReflect() {
     if (txt) {
       entry.aiInsight = txt;
       S.reflections[S.reflections.length - 1] = entry;
+      saveState();
       setText('insight-txt', txt);
       const ic = el('insight-card'); if (ic) ic.classList.add('show');
       return;
     }
   } catch(e) {}
+  saveState();
   setText('insight-txt', 'Great job reflecting today. Consistency in reflection builds self-awareness.');
   const ic = el('insight-card'); if (ic) ic.classList.add('show');
 }
@@ -2154,6 +2218,7 @@ async function saveProfile() {
   if (!isLocal()) {
     try { await apiPOST('/user/profile', {name, goal}); } catch(e) {}
   }
+  saveState();
   toast('✓ Profile saved');
 }
 
@@ -2162,6 +2227,7 @@ function saveSettingsReflect() {
   if (ri) S.reflectTime = ri.value;
   const hr = el('reflect-time');
   if (hr) hr.value = S.reflectTime || '21:00';
+  saveState();
   toast('✓ Reminder time saved');
 }
 
@@ -2172,18 +2238,21 @@ function doLogout() {
     freeze_until:null, completions:{}, rewards:[], reflections:[], reflectTime:'21:00',
     weeklyDone:[], lastActiveDate:null
   };
-  try { sessionStorage.clear(); } catch(e) {}
+  persistSession();
   showScreen('landing');
 }
 
-function doReset() {
+async function doReset() {
   if (!confirm('Reset ALL data? This cannot be undone.')) return;
+  if (!isLocal()) {
+    try { await apiDEL('/user'); } catch(e) {}
+  }
   S = {
     userAuth:null, user:{name:'',goal:''}, habits:[], streak:0, xp:0, level:1,
     freeze_until:null, completions:{}, rewards:[], reflections:[], reflectTime:'21:00',
     weeklyDone:[], lastActiveDate:null
   };
-  try { sessionStorage.clear(); } catch(e) {}
+  persistSession();
   showScreen('landing');
 }
 
@@ -2255,9 +2324,18 @@ async function init() {
     const sess = sessionStorage.getItem('oneday_session');
     if (sess) {
       const parsed = JSON.parse(sess);
-      if (parsed.userAuth)    S.userAuth    = parsed.userAuth;
-      if (parsed.user)        S.user        = parsed.user;
-      if (parsed.reflectTime) S.reflectTime = parsed.reflectTime;
+      if (parsed && typeof parsed === 'object') {
+        S = {
+          ...S,
+          ...parsed,
+          user: {...S.user, ...(parsed.user || {})},
+          habits: Array.isArray(parsed.habits) ? parsed.habits : (S.habits || []),
+          completions: parsed.completions || (S.completions || {}),
+          rewards: Array.isArray(parsed.rewards) ? parsed.rewards : (S.rewards || []),
+          reflections: Array.isArray(parsed.reflections) ? parsed.reflections : (S.reflections || []),
+          weeklyDone: Array.isArray(parsed.weeklyDone) ? parsed.weeklyDone : (S.weeklyDone || []),
+        };
+      }
     }
   } catch(e) {}
 
@@ -2277,13 +2355,7 @@ async function init() {
 
 // Persist auth on unload
 window.addEventListener('beforeunload', () => {
-  try {
-    sessionStorage.setItem('oneday_session', JSON.stringify({
-      userAuth:    S.userAuth,
-      user:        S.user,
-      reflectTime: S.reflectTime,
-    }));
-  } catch(e) {}
+  persistSession();
 });
 
 window.addEventListener('resize', () => {
